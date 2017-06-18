@@ -1,2 +1,3 @@
 syntax: regexp
 ^MDK-ARM/AstroMountDriver$
+^MDK-ARM/.*\.uvguix\..*$
