@@ -4,6 +4,7 @@
 #include <tim.h>
 #include <Protocol.h>
 #include "Encoder.h"
+#include "Config.h"
 #include "Logic.h"
 
 using namespace EQ;

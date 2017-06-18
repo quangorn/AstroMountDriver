@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 void EqUpdateEncoderValues(void);
-void EqGetEncoderValues(uint16_t* pValueX, uint16_t* pValueY);
+void EqGetEncoderValues(int16_t* pValueX, int16_t* pValueY);
 
 #ifdef __cplusplus
 }

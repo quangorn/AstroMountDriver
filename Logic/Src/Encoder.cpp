@@ -54,7 +54,7 @@ void EqUpdateEncoderValues() {
 //		HAL_Delay(1);
 }
 
-void EqGetEncoderValues(uint16_t* pValueX, uint16_t* pValueY) {
+void EqGetEncoderValues(int16_t* pValueX, int16_t* pValueY) {
 	uint32_t tmp = m_ValuesHistory[m_nCurrentHistoryPosition];
 	uint8_t* pBytes = (uint8_t*)&tmp;
 	*pValueX = pBytes[1] + (pBytes[0] << 8);
