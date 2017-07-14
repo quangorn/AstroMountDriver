@@ -31,10 +31,10 @@ uint32_t m_nGoToTargetMicrostep[2]; //Where we must stop motors
 En_Status StopMotorSlowly(En_MotorId nMotorId);
 
 template <typename T>
-void SendResp(uint8_t* pRecvBuf, T* pReq) {
-	uint8_t nSize = sizeof(*pReq);
+void SendResp(uint8_t* pRecvBuf, T* pResp) {
+	uint8_t nSize = sizeof(*pResp);
 	pRecvBuf[0] = nSize;
-	memcpy(pRecvBuf + 1, pReq, nSize);
+	memcpy(pRecvBuf + 1, pResp, nSize);
 }
 
 void SendResp(uint8_t* pRecvBuf, En_Status nStatus) {
@@ -339,6 +339,20 @@ void EqProcessReceive(uint8_t* pRecvBuf) {
 				return SendResp(pRecvBuf, STS_WRONG_CMD_SIZE);
 			
 			return SendResp(pRecvBuf, StartTrack((EqStartTrackReq*)(pRecvBuf + 1)));
+		}
+		case CMD_READ_CONFIG: {
+			if (nReqSize != sizeof(EqReq))
+				return SendResp(pRecvBuf, STS_WRONG_CMD_SIZE);
+			
+			EqReadConfigResp Resp;
+			EqReadConfig(&Resp.m_Config);
+			return SendResp(pRecvBuf, &Resp);
+		}
+		case CMD_WRITE_CONFIG: {
+			if (nReqSize != sizeof(EqWriteConfigReq))
+				return SendResp(pRecvBuf, STS_WRONG_CMD_SIZE);
+			
+			return SendResp(pRecvBuf, (En_Status)EqWriteConfig(&((EqWriteConfigReq*)(pRecvBuf + 1))->m_Config));
 		}
 		default:
 			return SendResp(pRecvBuf, STS_UNKNOWN_CMD);

@@ -995,6 +995,11 @@
               <FileType>8</FileType>
               <FilePath>..\Logic\Src\Encoder.cpp</FilePath>
             </File>
+            <File>
+              <FileName>Config.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Logic\Src\Config.cpp</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
