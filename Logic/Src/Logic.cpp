@@ -9,17 +9,16 @@
 
 using namespace EQ;
 
+Config m_Config;
+
 uint32_t m_nMicrostepCount[2] = {0, 0};
 bool m_lMotorEnabled[2] = {false, false};
 bool m_lMotorDisableScheduled[2] = {false, false};
 uint8_t m_nMotorDirection[2] = {DIR_FORWARD, DIR_FORWARD};
 uint32_t m_nMotorTargetRate[2] = {1, 1}; //1 = Sidereal
 uint32_t m_nMotorCurrentRate[2] = {0, 0};
-uint16_t m_nMotorMaxRate[2] = {800, 200};
-uint16_t m_nMotorMaxAcceleration[2] = {5, 2}; //Sidereal rates per 12.5 ms
 uint32_t m_nMotorChangeSpeedMicrostep[2] = {0, 0};
 
-uint16_t m_nEmergencyStopAccelerationMultiplier = 3;
 bool m_lDecMotorEmergencyStop = false;
 
 bool m_lGoToEnabled[2] = {false, false}; //If GoTo command is in process
@@ -76,17 +75,16 @@ En_Status StopMotorInstantly(En_MotorId nMotorId) {
 
 void SetMotorRate(En_MotorId nMotorId, uint32_t nRate) {
 	uint32_t nPsc, nArr;
-	if (nRate > m_nMotorMaxRate[nMotorId]) {
-		nRate = m_nMotorMaxRate[nMotorId];
+	if (nRate > m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxRate) {
+		nRate = m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxRate;
 	}
 	if (nRate == 1) {
-		nPsc = nMotorId == MI_RA ? MOT_RA_PSC_SIDEREAL : MOT_DEC_PSC_SIDEREAL;
-		nArr = nMotorId == MI_RA ? MOT_RA_PERIOD_SIDEREAL : MOT_DEC_PERIOD_SIDEREAL;
+		nPsc = m_Config.m_AxisConfigs[nMotorId].m_nSiderealPsc;
+		nArr = m_Config.m_AxisConfigs[nMotorId].m_nSiderealPeriod;
 	} else {
 		nPsc = 1;
-		nArr = nMotorId == MI_RA ?
-			MOT_RA_PSC_SIDEREAL * MOT_RA_PERIOD_SIDEREAL :
-			MOT_DEC_PSC_SIDEREAL * MOT_DEC_PERIOD_SIDEREAL;
+		nArr = m_Config.m_AxisConfigs[nMotorId].m_nSiderealPsc *
+				m_Config.m_AxisConfigs[nMotorId].m_nSiderealPeriod;
 		nArr /= nRate;
 		while (nArr > 0x10000) {
 			nArr >>= 1;
@@ -109,8 +107,8 @@ void AdjustSpeed(En_MotorId nMotorId) {
 	uint32_t nRate;
 	int32_t nDelta = m_nMotorTargetRate[nMotorId] - m_nMotorCurrentRate[nMotorId];
 	uint16_t nAcceleration = nMotorId == MI_DEC && m_lDecMotorEmergencyStop ? 
-			m_nEmergencyStopAccelerationMultiplier * m_nMotorMaxAcceleration[MI_DEC] :
-			m_nMotorMaxAcceleration[nMotorId];
+			m_Config.m_nEmergencyStopAccelerationMultiplier * m_Config.m_AxisConfigs[MI_DEC].m_nMotorMaxAcceleration :
+			m_Config.m_AxisConfigs[MI_DEC].m_nMotorMaxAcceleration;
 	if (nDelta > nAcceleration) {
 		nRate = m_nMotorCurrentRate[nMotorId] + nAcceleration;
 	} else if (nDelta < -nAcceleration) {
@@ -140,10 +138,10 @@ En_Status StopMotorSlowly(En_MotorId nMotorId) {
 
 bool CheckMotorLimits(En_MotorId nMotorId, En_Direction nDirection) {
 	if (nMotorId == MI_DEC) {
-		if (nDirection == DIR_FORWARD && 
+		if (nDirection == (DIR_FORWARD ^ m_Config.m_lLimitDetectorsReverse) && 
 				HAL_GPIO_ReadPin(DEC_LIMIT_FORWARD_GPIO_Port, DEC_LIMIT_FORWARD_Pin) == GPIO_PIN_RESET)
 			return false;
-		if (nDirection == DIR_REVERSE && 
+		if (nDirection == (DIR_REVERSE ^ m_Config.m_lLimitDetectorsReverse) && 
 				HAL_GPIO_ReadPin(DEC_LIMIT_REVERSE_GPIO_Port, DEC_LIMIT_REVERSE_Pin) == GPIO_PIN_RESET)
 			return false;
 	}
@@ -157,11 +155,11 @@ En_Status StartMotor(En_MotorId nMotorId) {
 	}
 	if (nMotorId == MI_RA) {
 		HAL_GPIO_WritePin(MOT_RA_DIR_GPIO_Port, MOT_RA_DIR_Pin, 
-				m_nMotorDirection[MI_RA] == DIR_FORWARD ? GPIO_PIN_RESET : GPIO_PIN_SET);
+				m_nMotorDirection[MI_RA] == (DIR_FORWARD ^ m_Config.m_AxisConfigs[MI_RA].m_lReverse) ? GPIO_PIN_RESET : GPIO_PIN_SET);
 		HAL_TIM_OC_Start_IT(&TIMER_HANDLE_RA, TIMER_CHANNEL_RA);
 	} else {
 		HAL_GPIO_WritePin(MOT_DEC_DIR_GPIO_Port, MOT_DEC_DIR_Pin, 
-				m_nMotorDirection[MI_DEC] == DIR_FORWARD ? GPIO_PIN_RESET : GPIO_PIN_SET);
+				m_nMotorDirection[MI_DEC] == (DIR_FORWARD ^ m_Config.m_AxisConfigs[MI_DEC].m_lReverse) ? GPIO_PIN_RESET : GPIO_PIN_SET);
 		HAL_TIM_OC_Start_IT(&TIMER_HANDLE_DEC, TIMER_CHANNEL_DEC);
 	}
 	return STS_OK;
@@ -173,13 +171,13 @@ En_Status InitMotors(EqInitMotorsReq *pReq) {
 	if (m_nMotorCurrentRate[MI_DEC])
 		return STS_DEC_MOTOR_RUNNING;
 	
-	m_nMicrostepCount[MI_RA] = pReq->m_nRaVal << 1;
+	m_nMicrostepCount[MI_RA] = pReq->m_nRaVal * m_Config.m_AxisConfigs[MI_RA].m_nMicrostepsDivider;
 	if (!m_lMotorEnabled[MI_RA]) {
 		m_lMotorEnabled[MI_RA] = true;
 		HAL_GPIO_WritePin(MOT_RA_ENABLE_GPIO_Port, MOT_RA_ENABLE_Pin, GPIO_PIN_SET);
 	}
 	
-	m_nMicrostepCount[MI_DEC] = pReq->m_nDecVal << 1;
+	m_nMicrostepCount[MI_DEC] = pReq->m_nDecVal * m_Config.m_AxisConfigs[MI_DEC].m_nMicrostepsDivider;
 	if (!m_lMotorEnabled[MI_DEC]) {
 		m_lMotorEnabled[MI_DEC] = true;
 		HAL_GPIO_WritePin(MOT_DEC_ENABLE_GPIO_Port, MOT_DEC_ENABLE_Pin, GPIO_PIN_SET);
@@ -198,7 +196,8 @@ En_Status GetMotorValues(EqGetMotorValuesReq *pReq, EqGetMotorValuesResp *pResp)
 	if (pReq->m_nMotorId == MI_RA) {
 		EqGetEncoderValues(&pResp->m_nEncoderValueX, &pResp->m_nEncoderValueY);
 	}
-	pResp->m_nMicrostepCount = m_nMicrostepCount[pReq->m_nMotorId] >> 1;
+	pResp->m_nMicrostepCount = m_nMicrostepCount[pReq->m_nMotorId] / 
+			m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMicrostepsDivider;
 	return STS_OK;
 }
 
@@ -209,7 +208,8 @@ En_Status SetMotorValues(EqSetMotorValuesReq *pReq) {
 		return STS_MOTOR_NOT_INITIALIZED;
 	}
 		
-	m_nMicrostepCount[pReq->m_nMotorId] = pReq->m_nMotorVal << 1;	
+	m_nMicrostepCount[pReq->m_nMotorId] = pReq->m_nMotorVal *
+			m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMicrostepsDivider;	
 	return STS_OK;
 }
 
@@ -237,12 +237,13 @@ En_Status GoTo(EqGoToReq *pReq) {
 	uint32_t nDeltaSteps = pReq->m_nDirection == DIR_FORWARD ? 
 					pReq->m_nStepCount : -pReq->m_nStepCount;
 	m_nGoToStartMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId];
-	m_nGoToTargetMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId] + (nDeltaSteps << 1);
-	m_nGoToSlowDownMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId] + nDeltaSteps;
+	uint32_t nDelta = nDeltaSteps * m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMicrostepsDivider;
+	m_nGoToTargetMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId] + nDelta;
+	m_nGoToSlowDownMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId] + nDelta / 2;
 	m_lGoToEnabled[pReq->m_nMotorId] = true;
 	m_lGoToSlowDownAdjusted[pReq->m_nMotorId] = false;
 	m_nMotorDirection[pReq->m_nMotorId] = pReq->m_nDirection;
-	m_nMotorTargetRate[pReq->m_nMotorId] = m_nMotorMaxRate[pReq->m_nMotorId];
+	m_nMotorTargetRate[pReq->m_nMotorId] = m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMotorMaxRate;
 	AdjustSpeed((En_MotorId)pReq->m_nMotorId);
 	return StartMotor((En_MotorId)pReq->m_nMotorId);
 }
@@ -251,9 +252,9 @@ En_Status StartTrack(EqStartTrackReq *pReq) {
 	En_MotorId nMotorId = (En_MotorId)pReq->m_nMotorId;
 	if (!m_lMotorEnabled[nMotorId])
 		return STS_MOTOR_NOT_INITIALIZED;
-	if (m_nMotorCurrentRate[nMotorId] > m_nMotorMaxAcceleration[nMotorId])
+	if (m_nMotorCurrentRate[nMotorId] > m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxAcceleration)
 		return STS_MOTOR_BUSY;
-	if (m_nMotorCurrentRate[nMotorId] <= m_nMotorMaxAcceleration[nMotorId])
+	if (m_nMotorCurrentRate[nMotorId] <= m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxAcceleration)
 		StopMotorInstantly(nMotorId);
 
 	m_nMotorDirection[nMotorId] = pReq->m_nDirection;
@@ -345,14 +346,20 @@ void EqProcessReceive(uint8_t* pRecvBuf) {
 				return SendResp(pRecvBuf, STS_WRONG_CMD_SIZE);
 			
 			EqReadConfigResp Resp;
-			EqReadConfig(&Resp.m_Config);
+			EqReadConfig(&m_Config);
+			Resp.m_Config = m_Config;
 			return SendResp(pRecvBuf, &Resp);
 		}
 		case CMD_WRITE_CONFIG: {
 			if (nReqSize != sizeof(EqWriteConfigReq))
 				return SendResp(pRecvBuf, STS_WRONG_CMD_SIZE);
 			
-			return SendResp(pRecvBuf, (En_Status)EqWriteConfig(&((EqWriteConfigReq*)(pRecvBuf + 1))->m_Config));
+			Config& config = ((EqWriteConfigReq*)(pRecvBuf + 1))->m_Config;
+			En_Status status = (En_Status)EqWriteConfig(&config);
+			if (status == STS_OK) {
+				m_Config = config;
+			}
+			return SendResp(pRecvBuf, status);
 		}
 		default:
 			return SendResp(pRecvBuf, STS_UNKNOWN_CMD);
@@ -384,7 +391,7 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 		}
 		if (m_nMicrostepCount[nMotorId] == m_nGoToSlowDownMicrostep[nMotorId]) {
 			m_lGoToSlowDownAdjusted[nMotorId] = true;
-			m_nMotorTargetRate[nMotorId] = m_nMotorMaxAcceleration[nMotorId];
+			m_nMotorTargetRate[nMotorId] = m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxAcceleration;
 			AdjustSpeed(nMotorId);
 			return;
 		}
@@ -409,8 +416,8 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 		if (!m_lDecMotorEmergencyStop && m_nMotorCurrentRate[MI_DEC] && 
-				((GPIO_Pin == DEC_LIMIT_FORWARD_Pin && m_nMotorDirection[MI_DEC] == DIR_FORWARD) ||
-				(GPIO_Pin == DEC_LIMIT_REVERSE_Pin && m_nMotorDirection[MI_DEC] == DIR_REVERSE))) {
+				((GPIO_Pin == DEC_LIMIT_FORWARD_Pin && m_nMotorDirection[MI_DEC] == (DIR_FORWARD ^ m_Config.m_lLimitDetectorsReverse)) ||
+				(GPIO_Pin == DEC_LIMIT_REVERSE_Pin && m_nMotorDirection[MI_DEC] == (DIR_REVERSE ^ m_Config.m_lLimitDetectorsReverse)))) {
 			m_lDecMotorEmergencyStop = true;
 			StopMotorSlowly(MI_DEC);
 		}

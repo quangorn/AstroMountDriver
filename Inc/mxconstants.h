@@ -37,11 +37,7 @@
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/
-#define MOT_RA_PERIOD_SIDEREAL 3217
-#define USB_IN_MAX_PACKET_SIZE 32
-#define MOT_RA_PSC_SIDEREAL 279
-#define MOT_DEC_PERIOD_SIDEREAL 2476
-#define MOT_DEC_PSC_SIDEREAL 208
+#define USB_IN_MAX_PACKET_SIZE 60
 
 #define LED_RED_Pin GPIO_PIN_13
 #define LED_RED_GPIO_Port GPIOC
