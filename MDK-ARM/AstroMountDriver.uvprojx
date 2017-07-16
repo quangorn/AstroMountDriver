@@ -373,7 +373,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;                                                                            ../Drivers/STM32F1xx_HAL_Driver/Inc;                                                                            ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;                                                                            ../Drivers/CMSIS/Include;                                                                            ../Drivers/CMSIS/Device/ST/STM32F1xx/Include;                                                               ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;                                                               ../Middlewares/ST/STM32_USB_Device_Library/Class/CustomHID/Inc</IncludePath>
+              <IncludePath>../Inc;                                                                             ../Drivers/STM32F1xx_HAL_Driver/Inc;                                                                             ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;                                                                             ../Drivers/CMSIS/Include;                                                                             ../Drivers/CMSIS/Device/ST/STM32F1xx/Include;                                                                ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;                                                                ../Middlewares/ST/STM32_USB_Device_Library/Class/CustomHID/Inc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -994,6 +994,11 @@
               <FileName>Encoder.cpp</FileName>
               <FileType>8</FileType>
               <FilePath>..\Logic\Src\Encoder.cpp</FilePath>
+            </File>
+            <File>
+              <FileName>Config.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Logic\Src\Config.cpp</FilePath>
             </File>
           </Files>
         </Group>
