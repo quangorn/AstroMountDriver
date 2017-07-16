@@ -20,6 +20,7 @@ uint32_t m_nMotorCurrentRate[2] = {0, 0};
 uint32_t m_nMotorChangeSpeedMicrostep[2] = {0, 0};
 
 bool m_lDecMotorEmergencyStop = false;
+bool m_lDecMotorEmergencyOnGoTo = false; //Limit detected during GoTo process, need to sync to target after stop
 
 bool m_lGoToEnabled[2] = {false, false}; //If GoTo command is in process
 bool m_lGoToSlowDownAdjusted[2] = {false, false}; //If we moved slowdown point due to reaching full speed
@@ -65,6 +66,10 @@ En_Status StopMotorInstantly(En_MotorId nMotorId) {
 	} else {
 		HAL_TIM_OC_Stop_IT(&TIMER_HANDLE_DEC, TIMER_CHANNEL_DEC);
 		__HAL_TIM_SetCounter(&TIMER_HANDLE_DEC, 0);
+		if (m_lDecMotorEmergencyOnGoTo) { //instant sync to target
+			m_nMicrostepCount[MI_DEC] = m_nGoToTargetMicrostep[MI_DEC];
+			m_lDecMotorEmergencyOnGoTo = false;
+		}
 		m_lDecMotorEmergencyStop = false;
 	}
 	
@@ -150,7 +155,10 @@ bool CheckMotorLimits(En_MotorId nMotorId, En_Direction nDirection) {
 
 En_Status StartMotor(En_MotorId nMotorId) {
 	if (!CheckMotorLimits(nMotorId, (En_Direction)m_nMotorDirection[nMotorId])) {
-		StopMotorSlowly(nMotorId); //need to erase all motor params
+		if (m_lGoToEnabled[nMotorId]) { //instant sync to target
+			m_nMicrostepCount[nMotorId] = m_nGoToTargetMicrostep[nMotorId];
+		}
+		StopMotorSlowly(nMotorId); //need to erase all motor params		
 		return STS_MOTOR_LIMIT_REACHED;
 	}
 	if (nMotorId == MI_RA) {
@@ -419,6 +427,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 				((GPIO_Pin == DEC_LIMIT_FORWARD_Pin && m_nMotorDirection[MI_DEC] == (DIR_FORWARD ^ m_Config.m_lLimitDetectorsReverse)) ||
 				(GPIO_Pin == DEC_LIMIT_REVERSE_Pin && m_nMotorDirection[MI_DEC] == (DIR_REVERSE ^ m_Config.m_lLimitDetectorsReverse)))) {
 			m_lDecMotorEmergencyStop = true;
+			m_lDecMotorEmergencyOnGoTo = m_lGoToEnabled[MI_DEC];
 			StopMotorSlowly(MI_DEC);
 		}
 }
