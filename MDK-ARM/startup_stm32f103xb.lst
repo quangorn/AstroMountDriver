@@ -496,11 +496,11 @@ ARM Macro Assembler    Page 8
               00000000 
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M3 --apcs=interw
 ork --depend=astromountdriver\startup_stm32f103xb.d -oastromountdriver\startup_
-stm32f103xb.o -IC:\Users\XE\Documents\Keil\Projects\AstroMountDriver\MDK-ARM\RT
-E -IC:\Keil_v5\ARM\PACK\ARM\CMSIS\4.5.0\CMSIS\Include -IC:\Keil_v5\ARM\PACK\Kei
-l\STM32F1xx_DFP\2.0.0\Device\Include --predefine="__MICROLIB SETA 1" --predefin
-e="__UVISION_VERSION SETA 517" --predefine="_RTE_ SETA 1" --predefine="STM32F10
-X_MD SETA 1" --list=startup_stm32f103xb.lst startup_stm32f103xb.s
+stm32f103xb.o -ID:\Projects\Keil\AstroMountDriver\MDK-ARM\RTE -ID:\Programs\Kei
+l\ARM\PACK\ARM\CMSIS\4.5.0\CMSIS\Include -ID:\Programs\Keil\ARM\PACK\Keil\STM32
+F1xx_DFP\2.0.0\Device\Include --predefine="__MICROLIB SETA 1" --predefine="__UV
+ISION_VERSION SETA 517" --predefine="_RTE_ SETA 1" --predefine="STM32F10X_MD SE
+TA 1" --list=startup_stm32f103xb.lst startup_stm32f103xb.s
 
 
 
