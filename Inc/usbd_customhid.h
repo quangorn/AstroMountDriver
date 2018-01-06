@@ -35,7 +35,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include  "usbd_ioreq.h"
-#include  "mxconstants.h"
+#include  "main.h"
 
 /** @addtogroup STM32_USB_DEVICE_LIBRARY
   * @{

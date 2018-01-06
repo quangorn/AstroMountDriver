@@ -1,4 +1,4 @@
-#include <mxconstants.h>
+#include <main.h>
 #include <gpio.h>
 #include <string.h>
 #include <tim.h>
@@ -62,10 +62,10 @@ En_Status StopMotorInstantly(En_MotorId nMotorId) {
 	m_nMotorChangeSpeedMicrostep[nMotorId] = 0;
 	if (nMotorId == MI_RA) {
 		HAL_TIM_OC_Stop_IT(&TIMER_HANDLE_RA, TIMER_CHANNEL_RA);
-		__HAL_TIM_SetCounter(&TIMER_HANDLE_RA, 0);
+		__HAL_TIM_SET_COUNTER(&TIMER_HANDLE_RA, 0);
 	} else {
 		HAL_TIM_OC_Stop_IT(&TIMER_HANDLE_DEC, TIMER_CHANNEL_DEC);
-		__HAL_TIM_SetCounter(&TIMER_HANDLE_DEC, 0);
+		__HAL_TIM_SET_COUNTER(&TIMER_HANDLE_DEC, 0);
 		if (m_lDecMotorEmergencyOnGoTo) { //instant sync to target
 			m_nMicrostepCount[MI_DEC] = m_nGoToTargetMicrostep[MI_DEC];
 			m_lDecMotorEmergencyOnGoTo = false;

@@ -1,4 +1,4 @@
-#include <mxconstants.h>
+#include <main.h>
 #include <gpio.h>
 #include <spi.h>
 #include "Encoder.h"

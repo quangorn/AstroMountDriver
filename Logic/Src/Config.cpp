@@ -1,4 +1,4 @@
-#include <mxconstants.h>
+#include <main.h>
 #include <stm32f1xx_hal.h>
 #include <string.h>
 #include <Protocol.h>
@@ -29,7 +29,7 @@ int EqWriteConfig(void* ptr) {
 	HAL_FLASH_Unlock();
 	
 	FLASH_EraseInitTypeDef EraseInitStruct;
-	EraseInitStruct.TypeErase = TYPEERASE_PAGES;
+	EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;
 	EraseInitStruct.PageAddress = dst;
 	EraseInitStruct.NbPages = 1;
 
@@ -50,7 +50,7 @@ int EqWriteConfig(void* ptr) {
 //			dst += 4;
 //			src += 4;
 //		} else {
-			status = HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, dst, *(uint16_t*)src);
+			status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, dst, *(uint16_t*)src);
 			dst += 2;
 			src += 2;
 //		}

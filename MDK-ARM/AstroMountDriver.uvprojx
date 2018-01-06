@@ -373,7 +373,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;                                                                             ../Drivers/STM32F1xx_HAL_Driver/Inc;                                                                             ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;                                                                             ../Drivers/CMSIS/Include;                                                                             ../Drivers/CMSIS/Device/ST/STM32F1xx/Include;                                                                ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;                                                                ../Middlewares/ST/STM32_USB_Device_Library/Class/CustomHID/Inc</IncludePath>
+              <IncludePath>../Inc;                                                                                ../Drivers/STM32F1xx_HAL_Driver/Inc;                                                                                ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;                                                                                ../Drivers/CMSIS/Include;                                                                                ../Drivers/CMSIS/Device/ST/STM32F1xx/Include;                                                                   ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;                                                                   ../Middlewares/ST/STM32_USB_Device_Library/Class/CustomHID/Inc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -557,7 +557,7 @@
             <File>
               <FileName>system_stm32f1xx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>../Drivers/CMSIS/Device/ST/STM32F1xx/Source/Templates/system_stm32f1xx.c</FilePath>
+              <FilePath>../Src/system_stm32f1xx.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -629,6 +629,41 @@
           </GroupOption>
           <Files>
             <File>
+              <FileName>usbd_customhid.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\usbd_customhid.c</FilePath>
+            </File>
+            <File>
+              <FileName>usb_device.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Src/usb_device.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_custom_hid_if.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Src/usbd_custom_hid_if.c</FilePath>
+            </File>
+            <File>
+              <FileName>tim.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Src/tim.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_desc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Src/usbd_desc.c</FilePath>
+            </File>
+            <File>
+              <FileName>gpio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Src/gpio.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_conf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Src/usbd_conf.c</FilePath>
+            </File>
+            <File>
               <FileName>stm32f1xx_it.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/stm32f1xx_it.c</FilePath>
@@ -639,49 +674,14 @@
               <FilePath>../Src/main.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f1xx_hal_msp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/stm32f1xx_hal_msp.c</FilePath>
-            </File>
-            <File>
-              <FileName>gpio.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/gpio.c</FilePath>
-            </File>
-            <File>
-              <FileName>tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/tim.c</FilePath>
-            </File>
-            <File>
-              <FileName>usbd_custom_hid_if.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/usbd_custom_hid_if.c</FilePath>
-            </File>
-            <File>
-              <FileName>usbd_desc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/usbd_desc.c</FilePath>
-            </File>
-            <File>
-              <FileName>usbd_conf.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/usbd_conf.c</FilePath>
-            </File>
-            <File>
-              <FileName>usb_device.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/usb_device.c</FilePath>
-            </File>
-            <File>
-              <FileName>usbd_customhid.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\usbd_customhid.c</FilePath>
-            </File>
-            <File>
               <FileName>spi.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/spi.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_msp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Src/stm32f1xx_hal_msp.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -831,6 +831,11 @@
               <FileName>stm32f1xx_hal_spi.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_spi.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_gpio_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio_ex.c</FilePath>
             </File>
           </Files>
         </Group>
