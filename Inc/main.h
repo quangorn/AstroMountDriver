@@ -9,7 +9,7 @@
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * Copyright (c) 2017 STMicroelectronics International N.V. 
+  * Copyright (c) 2018 STMicroelectronics International N.V. 
   * All rights reserved.
   *
   * Redistribution and use in source and binary forms, with or without 
@@ -56,7 +56,7 @@
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/
-#define USB_IN_MAX_PACKET_SIZE 60
+#define USB_IN_MAX_PACKET_SIZE 64
 
 #define LED_RED_Pin GPIO_PIN_13
 #define LED_RED_GPIO_Port GPIOC

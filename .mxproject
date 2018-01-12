@@ -1,6 +1,6 @@
 [PreviousGenFiles]
-HeaderPath=D:/Projects/Keil/AstroMountDriver/Inc
-SourcePath=D:/Projects/Keil/AstroMountDriver/Src
+HeaderPath=C:/Users/XE/Documents/Keil/Projects/AstroMountDriver/Inc
+SourcePath=C:/Users/XE/Documents/Keil/Projects/AstroMountDriver/Src
 SourceFiles=gpio.h;tim.h;stm32f1xx_it.h;stm32f1xx_hal_conf.h;mxconstants.h;gpio.c;tim.c;stm32f1xx_it.c;stm32f1xx_hal_msp.c;main.c;usb_device.h;usbd_conf.h;usbd_desc.h;usbd_custom_hid_if.h;usb_device.c;usbd_conf.c;usbd_desc.c;usbd_custom_hid_if.c;rtc.h;rtc.c;spi.h;spi.c;
 HeaderFiles=gpio.h;tim.h;stm32f1xx_it.h;stm32f1xx_hal_conf.h;;usb_device.h;usbd_conf.h;usbd_desc.h;usbd_custom_hid_if.h;rtc.h;spi.h;main.h;
 

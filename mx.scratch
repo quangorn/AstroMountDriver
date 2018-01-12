@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Project>
-<ProjectName>D:\Projects\Keil\AstroMountDriver\\AstroMountDriver</ProjectName>
+<ProjectName>C:\Users\XE\Documents\Keil\Projects\AstroMountDriver\\AstroMountDriver</ProjectName>
 <CMSIS>..\Drivers\CMSIS</CMSIS>
-<HAL_Driver>C:\Users\Vladimir\STM32Cube\Repository\STM32Cube_FW_F1_V1.6.0\Drivers\CMSIS</HAL_Driver>
+<HAL_Driver>C:\Users\XE\STM32Cube\Repository\STM32Cube_FW_F1_V1.6.0\Drivers\CMSIS</HAL_Driver>
 
 <Toolchain>MDK-ARM</Toolchain>
 	<Toolversion>5</Toolversion>
