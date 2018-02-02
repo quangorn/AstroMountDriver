@@ -292,9 +292,6 @@ void EqProcessReceive(uint8_t* pRecvBuf) {
 			return SendResp(pRecvBuf, InitMotors((EqInitMotorsReq*)(pRecvBuf + 1)));
 		}
 		case CMD_DEINIT_MOTORS: {
-			if (nReqSize != sizeof(EqDeInitMotorsReq))
-				return SendResp(pRecvBuf, STS_WRONG_CMD_SIZE);
-			
 			return SendResp(pRecvBuf, DeInitMotors());
 		}
 		case CMD_GET_MOTOR_STATUS: {
