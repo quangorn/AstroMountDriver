@@ -8,6 +8,10 @@
 void EqReadConfig(void* ptr);
 int EqWriteConfig(void* ptr);
 
+void EqReadEncoderCorrection(int pageCount, void* ptr);
+int EqWriteEncoderCorrection(int pageCount, void* ptr);
+int EqClearEncoderCorrection();
+
 #ifdef __cplusplus
 }
 #endif

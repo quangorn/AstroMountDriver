@@ -8,29 +8,15 @@ using namespace EQ;
 
 #define FLASH_PAGES_COUNT (*(uint16_t*)FLASH_SIZE_DATA_REGISTER)
 #define FLASH_PAGE_ADDR(PageCount) ((void*)(FLASH_BASE + FLASH_PAGE_SIZE * PageCount))
-#define FLASH_LAST_PAGE_ADDR FLASH_PAGE_ADDR((FLASH_PAGES_COUNT - 1))
+#define FLASH_CONFIG_PAGE FLASH_PAGE_ADDR((FLASH_PAGES_COUNT - 1))
+#define FLASH_ENCODER_CORRECTION_PAGE FLASH_PAGE_ADDR((FLASH_PAGES_COUNT - 2))
 
-void EqReadConfig(void* ptr) {
-//	Config* config = (Config*)ptr;
-//	*(uint32_t*)(&config->m_AxisConfigs[MI_RA].m_nMaxFreq) = (uint32_t)FLASH_LAST_PAGE_ADDR;
-//	*(uint32_t*)(&config->m_AxisConfigs[MI_DEC].m_nMaxFreq) = 0x800FC00;
-//	config->m_AxisConfigs[MI_RA].m_nMaxSpeed = 200;
-//	config->m_AxisConfigs[MI_RA].m_nMicrosteps = 200;
-	memcpy(ptr, FLASH_LAST_PAGE_ADDR, sizeof(Config));
-	//memcpy(ptr, (void*)0x800FC00, sizeof(Config));
-}
-
-int EqWriteConfig(void* ptr) {
-	uint8_t* begin = (uint8_t*)ptr;
-	uint8_t* src = (uint8_t*)ptr;
-	uint32_t dst = (uint32_t)FLASH_LAST_PAGE_ADDR;
-	uint8_t size = sizeof(Config);
-	
+int ErasePage(void* addr) {
 	HAL_FLASH_Unlock();
 	
 	FLASH_EraseInitTypeDef EraseInitStruct;
 	EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;
-	EraseInitStruct.PageAddress = dst;
+	EraseInitStruct.PageAddress = (uint32_t)addr;
 	EraseInitStruct.NbPages = 1;
 
 	uint32_t PageError = 0;
@@ -38,24 +24,58 @@ int EqWriteConfig(void* ptr) {
 		HAL_FLASH_Lock();
 		return STS_FLASH_ERASE_ERROR;
 	}
+	return STS_OK;
+};
+
+int WriteData(void* src, void* dst, int size) {
+	uint8_t* begin = (uint8_t*)src;
+	uint8_t* srcPtr = begin;
+	uint32_t dstPtr = (uint32_t)dst;
+		
+	HAL_FLASH_Unlock();
 	
 	HAL_StatusTypeDef status = HAL_OK;
-	while (status == HAL_OK && (src - begin) < size) {
+	while (status == HAL_OK && (srcPtr - begin) < size) {
 //		if ((src - begin) <= (size - 8)) {
-//			status = HAL_FLASH_Program(TYPEPROGRAM_DOUBLEWORD, dst, *(uint64_t*)src);
-//			dst += 8;
-//			src += 8;
+//			status = HAL_FLASH_Program(TYPEPROGRAM_DOUBLEWORD, dstPtr, *(uint64_t*)src);
+//			dstPtr += 8;
+//			srcPtr += 8;
 //		} else if ((src - begin) <= (size - 4)) {
-//			status = HAL_FLASH_Program(TYPEPROGRAM_WORD, dst, *(uint32_t*)src);
-//			dst += 4;
-//			src += 4;
+//			status = HAL_FLASH_Program(TYPEPROGRAM_WORD, dstPtr, *(uint32_t*)src);
+//			dstPtr += 4;
+//			srcPtr += 4;
 //		} else {
-			status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, dst, *(uint16_t*)src);
-			dst += 2;
-			src += 2;
+			status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, dstPtr, *(uint16_t*)srcPtr);
+			dstPtr += 2;
+			srcPtr += 2;
 //		}
 	}
 	
 	HAL_FLASH_Lock();   
 	return status == HAL_OK ? STS_OK : STS_FLASH_PROGRAM_ERROR;
+}
+
+void EqReadConfig(void* ptr) {
+	memcpy(ptr, FLASH_CONFIG_PAGE, sizeof(Config));
+}
+
+int EqWriteConfig(void* ptr) {
+	int result = ErasePage(FLASH_CONFIG_PAGE);
+	if (result != STS_OK) {
+		return result;
+	}
+	
+	return WriteData(ptr, FLASH_CONFIG_PAGE, sizeof(Config));
+}
+
+void EqReadEncoderCorrection(int pageCount, void* ptr) {
+	memcpy(ptr, (uint8_t*)FLASH_ENCODER_CORRECTION_PAGE + pageCount * ENCODER_CORRECTION_PAGE_SIZE, ENCODER_CORRECTION_PAGE_SIZE);
+}
+
+int EqWriteEncoderCorrection(int pageCount, void* ptr) {
+	return WriteData(ptr, (uint8_t*)FLASH_ENCODER_CORRECTION_PAGE + pageCount * ENCODER_CORRECTION_PAGE_SIZE, ENCODER_CORRECTION_PAGE_SIZE);
+}
+
+int EqClearEncoderCorrection() {
+	return ErasePage(FLASH_ENCODER_CORRECTION_PAGE);
 }
