@@ -31,24 +31,18 @@ int WriteData(void* src, void* dst, int size) {
 	uint8_t* begin = (uint8_t*)src;
 	uint8_t* srcPtr = begin;
 	uint32_t dstPtr = (uint32_t)dst;
+	
+	if (dstPtr % 2) {
+		return STS_FLASH_PROGRAM_ERROR;
+	}
 		
 	HAL_FLASH_Unlock();
 	
 	HAL_StatusTypeDef status = HAL_OK;
 	while (status == HAL_OK && (srcPtr - begin) < size) {
-//		if ((src - begin) <= (size - 8)) {
-//			status = HAL_FLASH_Program(TYPEPROGRAM_DOUBLEWORD, dstPtr, *(uint64_t*)src);
-//			dstPtr += 8;
-//			srcPtr += 8;
-//		} else if ((src - begin) <= (size - 4)) {
-//			status = HAL_FLASH_Program(TYPEPROGRAM_WORD, dstPtr, *(uint32_t*)src);
-//			dstPtr += 4;
-//			srcPtr += 4;
-//		} else {
-			status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, dstPtr, *(uint16_t*)srcPtr);
-			dstPtr += 2;
-			srcPtr += 2;
-//		}
+		status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, dstPtr, *(uint16_t*)srcPtr);
+		dstPtr += 2;
+		srcPtr += 2;
 	}
 	
 	HAL_FLASH_Lock();   
