@@ -10,6 +10,7 @@ using namespace EQ;
 #define FLASH_PAGE_ADDR(PageCount) ((void*)(FLASH_BASE + FLASH_PAGE_SIZE * PageCount))
 #define FLASH_CONFIG_PAGE FLASH_PAGE_ADDR((FLASH_PAGES_COUNT - 1))
 #define FLASH_ENCODER_CORRECTION_PAGE FLASH_PAGE_ADDR((FLASH_PAGES_COUNT - 2))
+#define FLASH_PEC_PAGE FLASH_PAGE_ADDR((FLASH_PAGES_COUNT - 3))
 
 int ErasePage(void* addr) {
 	HAL_FLASH_Unlock();
@@ -63,13 +64,25 @@ int EqWriteConfig(void* ptr) {
 }
 
 void EqReadEncoderCorrection(int pageCount, void* ptr) {
-	memcpy(ptr, (uint8_t*)FLASH_ENCODER_CORRECTION_PAGE + pageCount * ENCODER_CORRECTION_PAGE_SIZE, ENCODER_CORRECTION_PAGE_SIZE);
+	memcpy(ptr, (uint8_t*)FLASH_ENCODER_CORRECTION_PAGE + pageCount * USB_FLASH_PAGE_SIZE, USB_FLASH_PAGE_SIZE);
 }
 
 int EqWriteEncoderCorrection(int pageCount, void* ptr) {
-	return WriteData(ptr, (uint8_t*)FLASH_ENCODER_CORRECTION_PAGE + pageCount * ENCODER_CORRECTION_PAGE_SIZE, ENCODER_CORRECTION_PAGE_SIZE);
+	return WriteData(ptr, (uint8_t*)FLASH_ENCODER_CORRECTION_PAGE + pageCount * USB_FLASH_PAGE_SIZE, USB_FLASH_PAGE_SIZE);
 }
 
 int EqClearEncoderCorrection() {
 	return ErasePage(FLASH_ENCODER_CORRECTION_PAGE);
+}
+
+void EqReadPEC(int pageCount, void* ptr) {
+	memcpy(ptr, (uint8_t*)FLASH_PEC_PAGE + pageCount * USB_FLASH_PAGE_SIZE, USB_FLASH_PAGE_SIZE);
+}
+
+int EqWritePEC(int pageCount, void* ptr) {
+	return WriteData(ptr, (uint8_t*)FLASH_PEC_PAGE + pageCount * USB_FLASH_PAGE_SIZE, USB_FLASH_PAGE_SIZE);
+}
+
+int EqClearPEC() {
+	return ErasePage(FLASH_PEC_PAGE);
 }

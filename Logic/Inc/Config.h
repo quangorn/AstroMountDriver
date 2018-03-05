@@ -11,6 +11,10 @@ int EqWriteConfig(void* ptr);
 void EqReadEncoderCorrection(int pageCount, void* ptr);
 int EqWriteEncoderCorrection(int pageCount, void* ptr);
 int EqClearEncoderCorrection();
+	 
+void EqReadPEC(int pageCount, void* ptr);
+int EqWritePEC(int pageCount, void* ptr);
+int EqClearPEC();
 
 #ifdef __cplusplus
 }

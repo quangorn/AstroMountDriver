@@ -356,6 +356,25 @@ void EqProcessReceive(uint8_t* pRecvBuf) {
 		case CMD_CLEAR_ENCODER_CORRECTION: {
 			return SendResp(pRecvBuf, (En_Status)EqClearEncoderCorrection());
 		}
+		case CMD_READ_PEC: {
+			if (nReqSize != sizeof(EqReadPEC_Req))
+				return SendResp(pRecvBuf, STS_WRONG_CMD_SIZE);
+			
+			EqReadPEC_Resp Resp;
+			EqReadPEC(((EqReadPEC_Req*)(pRecvBuf + 1))->m_nPageNumber, Resp.m_Data);
+			return SendResp(pRecvBuf, &Resp);
+		}
+		case CMD_WRITE_PEC: {
+			if (nReqSize != sizeof(EqWritePEC_Req))
+				return SendResp(pRecvBuf, STS_WRONG_CMD_SIZE);
+			
+			EqWritePEC_Req* pReq = (EqWritePEC_Req*)(pRecvBuf + 1);
+			En_Status status = (En_Status)EqWritePEC(pReq->m_nPageNumber, pReq->m_Data);
+			return SendResp(pRecvBuf, status);
+		}
+		case CMD_CLEAR_PEC: {
+			return SendResp(pRecvBuf, (En_Status)EqClearPEC());
+		}
 		default:
 			return SendResp(pRecvBuf, STS_UNKNOWN_CMD);
 	}
