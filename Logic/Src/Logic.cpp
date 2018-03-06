@@ -232,13 +232,7 @@ En_Status StartTrack(EqStartTrackReq *pReq) {
 	if (!m_lMotorEnabled[nMotorId])
 		return STS_MOTOR_NOT_INITIALIZED;
 	if (m_nMotorCurrentRate[nMotorId] > m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxAcceleration)
-		return STS_MOTOR_BUSY;
-	if (m_nMotorCurrentRate[nMotorId] <= m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxAcceleration)
-		StopMotorInstantly(nMotorId);
-
-	m_nMotorDirection[nMotorId] = pReq->m_nDirection;
-	m_nMotorTargetRate[nMotorId] = 1;
-	m_nMotorCurrentRate[nMotorId] = 1;
+		return STS_MOTOR_BUSY;	
 	
 	TIM_HandleTypeDef *pTimer;
 	if (nMotorId == MI_RA) {
@@ -246,9 +240,21 @@ En_Status StartTrack(EqStartTrackReq *pReq) {
 	} else {
 		pTimer = &TIMER_HANDLE_DEC;
 	}
+	
+	//Disable update event while changing timer settings
+	pTimer->Instance->CR1 |= TIM_CR1_UDIS;
 	pTimer->Instance->ARR = pReq->m_nFirstPrescaler > 1 ? pReq->m_nFirstPrescaler - 1 : pReq->m_nSecondPrescaler - 1;
 	pTimer->Instance->PSC = pReq->m_nFirstPrescaler > 1 ? pReq->m_nSecondPrescaler - 1 : pReq->m_nFirstPrescaler - 1;
-	return StartMotor(nMotorId);
+	pTimer->Instance->CR1 &= ~TIM_CR1_UDIS;
+	
+	m_nMotorDirection[nMotorId] = pReq->m_nDirection;
+	m_nMotorTargetRate[nMotorId] = 1;
+	En_Status nStatus = STS_OK;
+	if (!m_nMotorCurrentRate[nMotorId]) {
+		nStatus = StartMotor(nMotorId);
+	}
+	m_nMotorCurrentRate[nMotorId] = 1;
+	return nStatus;
 }
 
 //====================================================
