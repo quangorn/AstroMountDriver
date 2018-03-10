@@ -103,7 +103,7 @@ void SetMotorRate(En_MotorId nMotorId, uint32_t nRate) {
 void AdjustSpeed(En_MotorId nMotorId) {
 	uint32_t nRate;
 	int32_t nDelta = m_nMotorTargetRate[nMotorId] - m_nMotorCurrentRate[nMotorId];
-	uint16_t nAcceleration = m_Config.m_AxisConfigs[MI_DEC].m_nMotorMaxAcceleration;
+	uint16_t nAcceleration = m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxAcceleration;
 	if (nDelta > nAcceleration) {
 		nRate = m_nMotorCurrentRate[nMotorId] + nAcceleration;
 	} else if (nDelta < -nAcceleration) {
@@ -213,10 +213,10 @@ En_Status GoTo(EqGoToReq *pReq) {
 	if (pReq->m_nStepCount <= 0)
 		return STS_INVALID_PARAMETERS;
 
-	uint32_t nDeltaSteps = pReq->m_nDirection == DIR_FORWARD ? 
+	int32_t nDeltaSteps = pReq->m_nDirection == DIR_FORWARD ? 
 					pReq->m_nStepCount : -pReq->m_nStepCount;
 	m_nGoToStartMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId];
-	uint32_t nDelta = nDeltaSteps * m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMicrostepsDivider;
+	int32_t nDelta = nDeltaSteps * m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMicrostepsDivider;
 	m_nGoToTargetMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId] + nDelta;
 	m_nGoToSlowDownMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId] + nDelta / 2;
 	m_lGoToEnabled[pReq->m_nMotorId] = true;
@@ -418,7 +418,7 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 		if (!m_lGoToSlowDownAdjusted[nMotorId] && 
 				m_nMotorCurrentRate[nMotorId] == m_nMotorTargetRate[nMotorId]) {
 			//How many steps acceleration took
-			uint32_t nAccelerationStepsCount = 
+			int32_t nAccelerationStepsCount = 
 					m_nMicrostepCount[nMotorId] - m_nGoToStartMicrostep[nMotorId]; 
 			m_nGoToSlowDownMicrostep[nMotorId] = 
 					m_nGoToTargetMicrostep[nMotorId] - nAccelerationStepsCount;
