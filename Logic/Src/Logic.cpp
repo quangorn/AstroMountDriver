@@ -58,10 +58,10 @@ En_Status StopMotorInstantly(En_MotorId nMotorId) {
 	m_nMotorCurrentRate[nMotorId] = 0;
 	m_nMotorChangeSpeedMicrostep[nMotorId] = 0;
 	if (nMotorId == MI_RA) {
-		HAL_TIM_OC_Stop_IT(&TIMER_HANDLE_RA, TIMER_CHANNEL_RA);
+		HAL_TIM_PWM_Stop_IT(&TIMER_HANDLE_RA, TIMER_CHANNEL_RA);
 		__HAL_TIM_SET_COUNTER(&TIMER_HANDLE_RA, 0);
 	} else {
-		HAL_TIM_OC_Stop_IT(&TIMER_HANDLE_DEC, TIMER_CHANNEL_DEC);
+		HAL_TIM_PWM_Stop_IT(&TIMER_HANDLE_DEC, TIMER_CHANNEL_DEC);
 		__HAL_TIM_SET_COUNTER(&TIMER_HANDLE_DEC, 0);
 	}
 	
@@ -89,12 +89,16 @@ void SetMotorRate(En_MotorId nMotorId, uint32_t nRate) {
 		}
 	}
 	
+	//TODO: переделать CCR2 на функцию конфигурации, так как канал может быть любым
+	//TODO: проверить правильность режима PWM (чтобы при стопе/старте не пропускались шаги)
 	if (nMotorId == MI_RA) {
 		TIMER_HANDLE_RA.Instance->PSC = nPsc - 1;
 		TIMER_HANDLE_RA.Instance->ARR = nArr - 1;
+		TIMER_HANDLE_RA.Instance->CCR2 = nArr >> 1;
 	} else {
 		TIMER_HANDLE_DEC.Instance->PSC = nPsc - 1;
 		TIMER_HANDLE_DEC.Instance->ARR = nArr - 1;
+		TIMER_HANDLE_DEC.Instance->CCR2 = nArr >> 1;
 	}
 	
 	m_nMotorCurrentRate[nMotorId] = nRate;
@@ -135,11 +139,11 @@ En_Status StartMotor(En_MotorId nMotorId) {
 	if (nMotorId == MI_RA) {
 		HAL_GPIO_WritePin(MOT_RA_DIR_GPIO_Port, MOT_RA_DIR_Pin, 
 				m_nMotorDirection[MI_RA] == (DIR_FORWARD ^ m_Config.m_AxisConfigs[MI_RA].m_lReverse) ? GPIO_PIN_RESET : GPIO_PIN_SET);
-		HAL_TIM_OC_Start_IT(&TIMER_HANDLE_RA, TIMER_CHANNEL_RA);
+		HAL_TIM_PWM_Start_IT(&TIMER_HANDLE_RA, TIMER_CHANNEL_RA);
 	} else {
 		HAL_GPIO_WritePin(MOT_DEC_DIR_GPIO_Port, MOT_DEC_DIR_Pin, 
 				m_nMotorDirection[MI_DEC] == (DIR_FORWARD ^ m_Config.m_AxisConfigs[MI_DEC].m_lReverse) ? GPIO_PIN_RESET : GPIO_PIN_SET);
-		HAL_TIM_OC_Start_IT(&TIMER_HANDLE_DEC, TIMER_CHANNEL_DEC);
+		HAL_TIM_PWM_Start_IT(&TIMER_HANDLE_DEC, TIMER_CHANNEL_DEC);
 	}
 	return STS_OK;
 }
@@ -150,13 +154,13 @@ En_Status InitMotors(EqInitMotorsReq *pReq) {
 	if (m_nMotorCurrentRate[MI_DEC])
 		return STS_DEC_MOTOR_RUNNING;
 	
-	m_nMicrostepCount[MI_RA] = pReq->m_nRaVal * m_Config.m_AxisConfigs[MI_RA].m_nMicrostepsDivider;
+	m_nMicrostepCount[MI_RA] = pReq->m_nRaVal << m_Config.m_AxisConfigs[MI_RA].m_nMicrostepsDivider;
 	if (!m_lMotorEnabled[MI_RA]) {
 		m_lMotorEnabled[MI_RA] = true;
 		HAL_GPIO_WritePin(MOT_RA_ENABLE_GPIO_Port, MOT_RA_ENABLE_Pin, GPIO_PIN_SET);
 	}
 	
-	m_nMicrostepCount[MI_DEC] = pReq->m_nDecVal * m_Config.m_AxisConfigs[MI_DEC].m_nMicrostepsDivider;
+	m_nMicrostepCount[MI_DEC] = pReq->m_nDecVal << m_Config.m_AxisConfigs[MI_DEC].m_nMicrostepsDivider;
 	if (!m_lMotorEnabled[MI_DEC]) {
 		m_lMotorEnabled[MI_DEC] = true;
 		HAL_GPIO_WritePin(MOT_DEC_ENABLE_GPIO_Port, MOT_DEC_ENABLE_Pin, GPIO_PIN_SET);
@@ -175,7 +179,7 @@ En_Status GetMotorValues(EqGetMotorValuesReq *pReq, EqGetMotorValuesResp *pResp)
 	if (pReq->m_nMotorId == MI_RA) {
 		EqGetEncoderValues(&pResp->m_nEncoderValueX, &pResp->m_nEncoderValueY);
 	}
-	pResp->m_nMicrostepCount = m_nMicrostepCount[pReq->m_nMotorId] / 
+	pResp->m_nMicrostepCount = m_nMicrostepCount[pReq->m_nMotorId] >> 
 			m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMicrostepsDivider;
 	return STS_OK;
 }
@@ -187,7 +191,7 @@ En_Status SetMotorValues(EqSetMotorValuesReq *pReq) {
 		return STS_MOTOR_NOT_INITIALIZED;
 	}
 		
-	m_nMicrostepCount[pReq->m_nMotorId] = pReq->m_nMotorVal *
+	m_nMicrostepCount[pReq->m_nMotorId] = pReq->m_nMotorVal <<
 			m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMicrostepsDivider;	
 	return STS_OK;
 }
@@ -216,7 +220,7 @@ En_Status GoTo(EqGoToReq *pReq) {
 	int32_t nDeltaSteps = pReq->m_nDirection == DIR_FORWARD ? 
 					pReq->m_nStepCount : -pReq->m_nStepCount;
 	m_nGoToStartMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId];
-	int32_t nDelta = nDeltaSteps * m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMicrostepsDivider;
+	int32_t nDelta = nDeltaSteps << m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMicrostepsDivider;
 	m_nGoToTargetMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId] + nDelta;
 	m_nGoToSlowDownMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId] + nDelta / 2;
 	m_lGoToEnabled[pReq->m_nMotorId] = true;
@@ -242,9 +246,11 @@ En_Status StartTrack(EqStartTrackReq *pReq) {
 	}
 	
 	//Disable update event while changing timer settings
+	//TODO: переделать CCR2 на функцию конфигурации, так как канал может быть любым
 	pTimer->Instance->CR1 |= TIM_CR1_UDIS;
 	pTimer->Instance->ARR = pReq->m_nFirstPrescaler > 1 ? pReq->m_nFirstPrescaler - 1 : pReq->m_nSecondPrescaler - 1;
 	pTimer->Instance->PSC = pReq->m_nFirstPrescaler > 1 ? pReq->m_nSecondPrescaler - 1 : pReq->m_nFirstPrescaler - 1;
+	pTimer->Instance->CCR2 = pReq->m_nFirstPrescaler > 1 ? pReq->m_nFirstPrescaler >> 1 : pReq->m_nSecondPrescaler >> 1;
 	pTimer->Instance->CR1 &= ~TIM_CR1_UDIS;
 	
 	m_nMotorDirection[nMotorId] = pReq->m_nDirection;

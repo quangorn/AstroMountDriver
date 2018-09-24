@@ -123,7 +123,7 @@ void MX_TIM2_Init(void)
   htim2.Init.Period = 1000;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_OC_Init(&htim2) != HAL_OK)
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -135,11 +135,11 @@ void MX_TIM2_Init(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
-  sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
-  sConfigOC.Pulse = 0;
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 500;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_OC_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -159,7 +159,7 @@ void MX_TIM3_Init(void)
   htim3.Init.Period = 1000;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_OC_Init(&htim3) != HAL_OK)
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -171,11 +171,11 @@ void MX_TIM3_Init(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
-  sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
-  sConfigOC.Pulse = 0;
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 500;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_OC_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -198,7 +198,12 @@ void HAL_TIM_OC_MspInit(TIM_HandleTypeDef* tim_ocHandle)
 
   /* USER CODE END TIM1_MspInit 1 */
   }
-  else if(tim_ocHandle->Instance==TIM2)
+}
+
+void HAL_TIM_PWM_MspInit(TIM_HandleTypeDef* tim_pwmHandle)
+{
+
+  if(tim_pwmHandle->Instance==TIM2)
   {
   /* USER CODE BEGIN TIM2_MspInit 0 */
 
@@ -213,7 +218,7 @@ void HAL_TIM_OC_MspInit(TIM_HandleTypeDef* tim_ocHandle)
 
   /* USER CODE END TIM2_MspInit 1 */
   }
-  else if(tim_ocHandle->Instance==TIM3)
+  else if(tim_pwmHandle->Instance==TIM3)
   {
   /* USER CODE BEGIN TIM3_MspInit 0 */
 
@@ -303,7 +308,12 @@ void HAL_TIM_OC_MspDeInit(TIM_HandleTypeDef* tim_ocHandle)
 
   /* USER CODE END TIM1_MspDeInit 1 */
   }
-  else if(tim_ocHandle->Instance==TIM2)
+}
+
+void HAL_TIM_PWM_MspDeInit(TIM_HandleTypeDef* tim_pwmHandle)
+{
+
+  if(tim_pwmHandle->Instance==TIM2)
   {
   /* USER CODE BEGIN TIM2_MspDeInit 0 */
 
@@ -317,7 +327,7 @@ void HAL_TIM_OC_MspDeInit(TIM_HandleTypeDef* tim_ocHandle)
 
   /* USER CODE END TIM2_MspDeInit 1 */
   }
-  else if(tim_ocHandle->Instance==TIM3)
+  else if(tim_pwmHandle->Instance==TIM3)
   {
   /* USER CODE BEGIN TIM3_MspDeInit 0 */
 
