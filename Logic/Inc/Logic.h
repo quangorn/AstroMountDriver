@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+void InitLogic(void);
 void EqProcessReceive(uint8_t* pRecvBuf);
 	 
 #ifdef __cplusplus

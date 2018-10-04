@@ -49,6 +49,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f1xx_hal.h"
+#include "dma.h"
 #include "spi.h"
 #include "tim.h"
 #include "usb_device.h"
@@ -57,6 +58,7 @@
 /* USER CODE BEGIN Includes */
 #include "usbd_custom_hid_if.h"
 #include "Encoder.h"
+#include "Logic.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -82,7 +84,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -103,6 +105,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM3_Init();
   MX_USB_DEVICE_Init();
   MX_SPI2_Init();
@@ -119,6 +122,8 @@ int main(void)
 //	HAL_TIM_OC_Start(&htim3, TIM_CHANNEL_2);
 //	HAL_Delay(1000);
 //	HAL_GPIO_WritePin(MOT_RA_DIR_GPIO_Port, MOT_RA_DIR_Pin, GPIO_PIN_RESET);
+
+	InitLogic();
 
 	//Init 1/32 microsteps on all motors
 	HAL_GPIO_WritePin(MOT_RA_M0_GPIO_Port, MOT_RA_M0_Pin, GPIO_PIN_SET);
