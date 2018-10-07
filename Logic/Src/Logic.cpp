@@ -18,6 +18,7 @@ uint8_t m_nMotorDirection[2] = {DIR_FORWARD, DIR_FORWARD};
 uint32_t m_nMotorTargetRate[2] = {1, 1}; //1 = Sidereal
 uint32_t m_nMotorCurrentRate[2] = {0, 0};
 uint32_t m_nMotorChangeSpeedMicrostep[2] = {0, 0};
+uint16_t m_nTimerDMA_Period[2] = {1, 1}; //How many microsteps per DMA interrupt
 
 bool m_lGoToEnabled[2] = {false, false}; //If GoTo command is in process
 bool m_lGoToSlowDownAdjusted[2] = {false, false}; //If we moved slowdown point due to reaching full speed
@@ -80,7 +81,8 @@ void StartTimer(En_MotorId nMotorId) {
 	/* Set the DMA error callback */
 	htim->hdma[TIM_DMA_ID_UPDATE]->XferErrorCallback = TIM_DMAError;	
 	/* Enable the DMA channel */
-	HAL_DMA_Start_IT(htim->hdma[TIM_DMA_ID_UPDATE], (uint32_t)htim->Instance->ARR, (uint32_t)m_DMA_Buffer, DMA_BUFFER_SIZE);
+	HAL_DMA_Start_IT(htim->hdma[TIM_DMA_ID_UPDATE], (uint32_t)htim->Instance->ARR, 
+			(uint32_t)m_DMA_Buffer, m_nTimerDMA_Period[nMotorId]);
 	/* Enable the TIM Update DMA request */
 	__HAL_TIM_ENABLE_DMA(htim, TIM_DMA_UPDATE);
 	/* Enable the Capture compare channel */
