@@ -22,6 +22,7 @@ uint16_t m_nTimerDMA_Period[2] = {1, 1}; //How many microsteps per DMA interrupt
 
 bool m_lGoToEnabled[2] = {false, false}; //If GoTo command is in process
 bool m_lGoToSlowDownAdjusted[2] = {false, false}; //If we moved slowdown point due to reaching full speed
+bool m_lGoToSlowedDown[2] = {false, false}; //If we already passed slow down point during GoTo
 uint32_t m_nGoToStartMicrostep[2]; //Where we started GoTo operation
 uint32_t m_nGoToSlowDownMicrostep[2]; //Where we must start to deaccelerate
 uint32_t m_nGoToTargetMicrostep[2]; //Where we must stop motors
@@ -41,7 +42,7 @@ uint8_t m_DMA_Buffer[DMA_BUFFER_SIZE];
 En_Status StopMotorSlowly(En_MotorId nMotorId);
 
 void InitLogic() {
-	//Instance таймера не заполнен на этапе статической инициализации, поэтому заполняем TIMER_CCR тут
+	//timer instance is not filled during static init, that's why we need separate InitLogic() function
 	TIMER_CCR[MI_RA] = &TIMER_CCR_RA;
 	TIMER_CCR[MI_DEC] = &TIMER_CCR_DEC;
 }
@@ -67,6 +68,31 @@ void DisableMotor(En_MotorId nMotorId) {
 		m_lMotorEnabled[nMotorId] = false;
 		HAL_GPIO_WritePin(ENABLE_GPIO[nMotorId], ENABLE_GPIO_PIN[nMotorId], GPIO_PIN_RESET);
 	}
+}
+
+int32_t GetTimerDMA_Counter(En_MotorId nMotorId) {
+	int32_t nDMA_Counter = m_nTimerDMA_Period[nMotorId] - TIMER_HANDLE[nMotorId]->hdma[TIM_DMA_ID_UPDATE]->Instance->CNDTR;
+	return m_nMotorDirection[nMotorId] == DIR_FORWARD ? nDMA_Counter : -nDMA_Counter;
+}
+
+void ResetTimerDMA_Counter(En_MotorId nMotorId) {
+	TIMER_HANDLE[nMotorId]->hdma[TIM_DMA_ID_UPDATE]->Instance->CNDTR = m_nTimerDMA_Period[nMotorId];
+}
+
+void CalcTimerDMA_Period(En_MotorId nMotorId, uint32_t nRate) {
+	//we need interrupt on every microstep when nRate <= MaxAcceleration for precise GoTo
+	uint32_t nPeriod = nRate / m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxAcceleration;
+	if (nPeriod == 0)
+		nPeriod = 1;
+	else if (nPeriod > DMA_BUFFER_SIZE)
+		nPeriod = DMA_BUFFER_SIZE;
+	m_nTimerDMA_Period[nMotorId] = (uint16_t)nPeriod;
+}
+
+void AdjustMicrostepCountAndResetTimerDMA_Counter(En_MotorId nMotorId, uint32_t nRate) {
+	m_nMicrostepCount[nMotorId] += GetTimerDMA_Counter(nMotorId);
+	CalcTimerDMA_Period(nMotorId, nRate);
+	ResetTimerDMA_Counter(nMotorId);
 }
 
 void StartTimer(En_MotorId nMotorId) {
@@ -103,7 +129,6 @@ void StopTimer(En_MotorId nMotorId) {
 	__HAL_TIM_SET_COUNTER(htim, 0);
 	/* Change the htim state */
 	htim->State = HAL_TIM_STATE_READY;
-	//TODO: прибавлять значение счётчика DMA к счётчику шагов и обнулять счётчик DMA
 }
 
 En_Status StopMotorInstantly(En_MotorId nMotorId) {
@@ -111,6 +136,7 @@ En_Status StopMotorInstantly(En_MotorId nMotorId) {
 	m_nMotorCurrentRate[nMotorId] = 0;
 	m_nMotorChangeSpeedMicrostep[nMotorId] = 0;
 	StopTimer(nMotorId);
+	AdjustMicrostepCountAndResetTimerDMA_Counter(nMotorId, 0);
 	
 	if (m_lMotorDisableScheduled[nMotorId])
 		DisableMotor(nMotorId);
@@ -137,9 +163,14 @@ void SetMotorRate(En_MotorId nMotorId, uint32_t nRate) {
 	}
 	
 	//TODO: проверить правильность режима PWM (чтобы при стопе/старте не пропускались шаги)
-	TIMER_HANDLE[nMotorId]->Instance->PSC = nPsc - 1;
-	TIMER_HANDLE[nMotorId]->Instance->ARR = nArr - 1;
-	*TIMER_CCR[nMotorId] = nArr >> 1;	
+	//Disable update event while changing timer settings
+	TIM_HandleTypeDef *pTimer = TIMER_HANDLE[nMotorId];
+	pTimer->Instance->CR1 |= TIM_CR1_UDIS;
+	pTimer->Instance->PSC = nPsc - 1;
+	pTimer->Instance->ARR = nArr - 1;
+	*TIMER_CCR[nMotorId] = nArr >> 1;	//PWM 50%
+	AdjustMicrostepCountAndResetTimerDMA_Counter(nMotorId, nRate);
+	pTimer->Instance->CR1 &= ~TIM_CR1_UDIS;
 	m_nMotorCurrentRate[nMotorId] = nRate;
 }
 
@@ -177,6 +208,7 @@ En_Status StopMotorSlowly(En_MotorId nMotorId) {
 En_Status StartMotor(En_MotorId nMotorId) {
 	HAL_GPIO_WritePin(DIR_GPIO[nMotorId], DIR_GPIO_PIN[nMotorId],	
 			m_nMotorDirection[nMotorId] == (DIR_FORWARD ^ m_Config.m_AxisConfigs[nMotorId].m_lReverse) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+	CalcTimerDMA_Period(nMotorId, m_nMotorCurrentRate[nMotorId]);
 	StartTimer(nMotorId);
 	return STS_OK;
 }
@@ -209,9 +241,7 @@ En_Status GetMotorValues(EqGetMotorValuesReq *pReq, EqGetMotorValuesResp *pResp)
 	
 	pResp->m_nMicrostepCount = m_nMicrostepCount[pReq->m_nMotorId];
 	if (m_nMotorCurrentRate[pReq->m_nMotorId]) {
-		//TODO: проверить что хранится в CNDTR (увеличивается он или уменьшается)
-		uint16_t nDMA_Counter = TIMER_HANDLE[pReq->m_nMotorId]->hdma[TIM_DMA_ID_UPDATE]->Instance->CNDTR;
-		pResp->m_nMicrostepCount += m_nMotorDirection[pReq->m_nMotorId] == DIR_FORWARD ? (DMA_BUFFER_SIZE - nDMA_Counter) : (nDMA_Counter - DMA_BUFFER_SIZE);
+		pResp->m_nMicrostepCount += GetTimerDMA_Counter((En_MotorId)pReq->m_nMotorId);
 	}
 	pResp->m_nMicrostepCount >>= m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMicrostepsDivider;
 	return STS_OK;
@@ -237,7 +267,8 @@ En_Status Slew(EqSlewReq *pReq) {
 		return STS_MOTOR_BUSY;
 
 	m_nMotorDirection[pReq->m_nMotorId] = pReq->m_nDirection;
-	m_nMotorTargetRate[pReq->m_nMotorId] = pReq->m_nRate;
+	uint32_t nMaxRate = m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMotorMaxRate;
+	m_nMotorTargetRate[pReq->m_nMotorId] = pReq->m_nRate <= nMaxRate ? pReq->m_nRate : nMaxRate;
 	AdjustSpeed((En_MotorId)pReq->m_nMotorId);
 	return StartMotor((En_MotorId)pReq->m_nMotorId);
 }
@@ -258,6 +289,7 @@ En_Status GoTo(EqGoToReq *pReq) {
 	m_nGoToSlowDownMicrostep[pReq->m_nMotorId] = m_nMicrostepCount[pReq->m_nMotorId] + nDelta / 2;
 	m_lGoToEnabled[pReq->m_nMotorId] = true;
 	m_lGoToSlowDownAdjusted[pReq->m_nMotorId] = false;
+	m_lGoToSlowedDown[pReq->m_nMotorId] = false;
 	m_nMotorDirection[pReq->m_nMotorId] = pReq->m_nDirection;
 	m_nMotorTargetRate[pReq->m_nMotorId] = m_Config.m_AxisConfigs[pReq->m_nMotorId].m_nMotorMaxRate;
 	AdjustSpeed((En_MotorId)pReq->m_nMotorId);
@@ -268,28 +300,28 @@ En_Status StartTrack(EqStartTrackReq *pReq) {
 	En_MotorId nMotorId = (En_MotorId)pReq->m_nMotorId;
 	if (!m_lMotorEnabled[nMotorId])
 		return STS_MOTOR_NOT_INITIALIZED;
-	if (m_nMotorCurrentRate[nMotorId] > m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxAcceleration)
+	//next check is mandatory, otherwise calculated earlier DMA period can become wrong
+	if (m_nMotorCurrentRate[nMotorId] > 1)
 		return STS_MOTOR_BUSY;	
 	
 	TIM_HandleTypeDef *pTimer = TIMER_HANDLE[nMotorId];	
-	//TODO: проверить правильность выставления флага на время изменения настроек
 	//Disable update event while changing timer settings
 	pTimer->Instance->CR1 |= TIM_CR1_UDIS;
 	if (pReq->m_nFirstPrescaler > 1) {
 		pTimer->Instance->ARR = pReq->m_nFirstPrescaler - 1;
 		pTimer->Instance->PSC = pReq->m_nSecondPrescaler - 1;
-		*TIMER_CCR[nMotorId] = pReq->m_nFirstPrescaler >> 1;
 	} else {
 		pTimer->Instance->ARR = pReq->m_nSecondPrescaler - 1;
 		pTimer->Instance->PSC = pReq->m_nFirstPrescaler - 1;
-		*TIMER_CCR[nMotorId] = pReq->m_nSecondPrescaler >> 1;
 	}
+	*TIMER_CCR[nMotorId] = pTimer->Instance->ARR >> 1; //PWM 50%
 	pTimer->Instance->CR1 &= ~TIM_CR1_UDIS;
 	
 	m_nMotorDirection[nMotorId] = pReq->m_nDirection;
 	m_nMotorTargetRate[nMotorId] = 1;
 	En_Status nStatus = STS_OK;
 	if (!m_nMotorCurrentRate[nMotorId]) {
+		m_nMotorCurrentRate[nMotorId] = 1;
 		nStatus = StartMotor(nMotorId);
 	}
 	m_nMotorCurrentRate[nMotorId] = 1;
@@ -425,7 +457,14 @@ void EqProcessReceive(uint8_t* pRecvBuf) {
 	}
 }
 
-//Timers output compare interrupt handler
+bool CheckMicrostepsEquals(En_MotorId nMotorId, uint32_t nCheckMicrosteps) {
+	if (m_nMotorDirection[nMotorId] == DIR_FORWARD) {
+		return m_nMicrostepCount[nMotorId] >= nCheckMicrosteps;
+	}
+	return m_nMicrostepCount[nMotorId] <= nCheckMicrosteps;
+}
+
+//Timers interrupt handler (DMA update event in our case)
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 {
 	En_MotorId nMotorId;
@@ -438,24 +477,28 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 	}
 	
 	if (m_nMotorDirection[nMotorId] == DIR_FORWARD) {
-		m_nMicrostepCount[nMotorId] += DMA_BUFFER_SIZE;
+		m_nMicrostepCount[nMotorId] += m_nTimerDMA_Period[nMotorId];
 	} else {
-		m_nMicrostepCount[nMotorId] -= DMA_BUFFER_SIZE;
+		m_nMicrostepCount[nMotorId] -= m_nTimerDMA_Period[nMotorId];
 	}
 	
-	//TODO: теперь проверка должна быть не только на равенство
 	if (m_lGoToEnabled[nMotorId]) {
-		if (m_nMicrostepCount[nMotorId] == m_nGoToTargetMicrostep[nMotorId]) {
+		//check if we reached target
+		if (CheckMicrostepsEquals(nMotorId, m_nGoToTargetMicrostep[nMotorId])) {
 			StopMotorSlowly(nMotorId);
 			return;
 		}
-		if (m_nMicrostepCount[nMotorId] == m_nGoToSlowDownMicrostep[nMotorId]) {
+		//check if we reached motor slowdown point
+		if (!m_lGoToSlowedDown[nMotorId] && 
+				CheckMicrostepsEquals(nMotorId, m_nGoToSlowDownMicrostep[nMotorId])) {
+			m_lGoToSlowedDown[nMotorId] = true;
 			m_lGoToSlowDownAdjusted[nMotorId] = true;
 			m_nMotorTargetRate[nMotorId] = m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxAcceleration;
 			AdjustSpeed(nMotorId);
 			return;
 		}
-		if (!m_lGoToSlowDownAdjusted[nMotorId] && 
+		//if we reached full speed earlier than slowdown point, then we must adjust that point
+		if (!m_lGoToSlowDownAdjusted[nMotorId] &&
 				m_nMotorCurrentRate[nMotorId] == m_nMotorTargetRate[nMotorId]) {
 			//How many steps acceleration took
 			int32_t nAccelerationStepsCount = 
@@ -466,9 +509,9 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 		}
 	}
 	
-	if (m_nMicrostepCount[nMotorId] != m_nMotorChangeSpeedMicrostep[nMotorId] ||
-				m_nMotorCurrentRate[nMotorId] == m_nMotorTargetRate[nMotorId])
-		return;
-	
-	AdjustSpeed(nMotorId);
+	//accelerate / decelerate
+	if (m_nMotorCurrentRate[nMotorId] != m_nMotorTargetRate[nMotorId] &&
+			CheckMicrostepsEquals(nMotorId, m_nMotorChangeSpeedMicrostep[nMotorId])) {
+		AdjustSpeed(nMotorId);
+	}
 }
