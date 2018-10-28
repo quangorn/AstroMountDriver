@@ -18,6 +18,7 @@ uint8_t m_nMotorDirection[2] = {DIR_FORWARD, DIR_FORWARD};
 uint32_t m_nMotorTargetRate[2] = {1, 1}; //1 = Sidereal
 uint32_t m_nMotorCurrentRate[2] = {0, 0};
 uint32_t m_nMotorChangeSpeedMicrostep[2] = {0, 0};
+uint32_t m_nMotorLastAdjustedSpeedMicrostep[2] = {0, 0};
 uint16_t m_nTimerDMA_Period[2] = {1, 1}; //How many microsteps per DMA interrupt
 
 bool m_lGoToEnabled[2] = {false, false}; //If GoTo command is in process
@@ -204,7 +205,8 @@ void AdjustSpeed(En_MotorId nMotorId) {
 	}
 	SetMotorRate(nMotorId, nRate);
 	
-	uint32_t nAccelerateStepsCount = nRate;
+	m_nMotorLastAdjustedSpeedMicrostep[nMotorId] = m_nMicrostepCount[nMotorId];
+	uint32_t nAccelerateStepsCount = nRate - nRate % m_nTimerDMA_Period[nMotorId];
 	m_nMotorChangeSpeedMicrostep[nMotorId] = m_nMotorDirection[nMotorId] == DIR_FORWARD ?
 					m_nMicrostepCount[nMotorId] + nAccelerateStepsCount :
 					m_nMicrostepCount[nMotorId] - nAccelerateStepsCount;
@@ -316,9 +318,7 @@ En_Status StartTrack(EqStartTrackReq *pReq) {
 	if (m_nMotorCurrentRate[nMotorId] > 1)
 		return STS_MOTOR_BUSY;	
 	
-	TIM_HandleTypeDef *pTimer = TIMER_HANDLE[nMotorId];	
-	//Disable update event while changing timer settings, so all register values will be reloaded simultaneously
-	pTimer->Instance->CR1 |= TIM_CR1_UDIS;
+	TIM_HandleTypeDef *pTimer = TIMER_HANDLE[nMotorId];
 	if (pReq->m_nFirstPrescaler > 1) {
 		pTimer->Instance->ARR = pReq->m_nFirstPrescaler - 1;
 		pTimer->Instance->PSC = pReq->m_nSecondPrescaler - 1;
@@ -327,7 +327,6 @@ En_Status StartTrack(EqStartTrackReq *pReq) {
 		pTimer->Instance->PSC = pReq->m_nFirstPrescaler - 1;
 	}
 	*TIMER_CCR[nMotorId] = pTimer->Instance->ARR >> 1; //PWM 50%
-	pTimer->Instance->CR1 &= ~TIM_CR1_UDIS;
 	
 	m_nMotorDirection[nMotorId] = pReq->m_nDirection;
 	m_nMotorTargetRate[nMotorId] = 1;
@@ -502,8 +501,18 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 		//check if we reached motor slowdown point
 		if (!m_lGoToSlowedDown[nMotorId] && 
 				CheckMicrostepsEquals(nMotorId, m_nGoToSlowDownMicrostep[nMotorId])) {
+			if (!m_lGoToSlowDownAdjusted[nMotorId]) {
+				m_lGoToSlowDownAdjusted[nMotorId] = true;
+				//how many steps we need to do before slowdown
+				int32_t nDelta = m_nGoToSlowDownMicrostep[nMotorId] * 2 - m_nMotorLastAdjustedSpeedMicrostep[nMotorId] - m_nMicrostepCount[nMotorId];
+				nDelta -= nDelta % m_nTimerDMA_Period[nMotorId];
+				if (nDelta) {
+					m_nGoToSlowDownMicrostep[nMotorId] = m_nMicrostepCount[nMotorId] + nDelta;
+					m_nMotorChangeSpeedMicrostep[nMotorId] = m_nGoToSlowDownMicrostep[nMotorId];
+					return;
+				}
+			}
 			m_lGoToSlowedDown[nMotorId] = true;
-			m_lGoToSlowDownAdjusted[nMotorId] = true;
 			m_nMotorTargetRate[nMotorId] = m_Config.m_AxisConfigs[nMotorId].m_nMotorMaxAcceleration;
 			AdjustSpeed(nMotorId);
 			return;
