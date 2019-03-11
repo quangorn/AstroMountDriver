@@ -169,6 +169,10 @@
                                 </file>
 
                                 <file>
+                                 <name>..\Src\dma.c</name>
+                                </file>
+
+                                <file>
                                  <name>..\Src\spi.c</name>
                                 </file>
 
